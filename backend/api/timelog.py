@@ -4,6 +4,7 @@ from sqlmodel import Session, select, SQLModel, or_
 from ..utils import engine
 from ..models.user import User
 from ..models.timelog import TimeLog
+from ..models.epic import Epic
 
 router = APIRouter(prefix="/api/timelogs", tags=["timelog"])
 
@@ -11,8 +12,17 @@ router = APIRouter(prefix="/api/timelogs", tags=["timelog"])
 @router.post("/")
 async def timelog(*, timelog: TimeLog, session: Session = Depends(get_session)):
     """
-    Post timelog
-    example: timelog.start_time = "2022-01-19T08:30:00.000Z"
+    Post new timelog.
+
+    Example: timelog.start_time = "2022-01-19T08:30:00.000Z
+
+    Parameters
+    ----------
+    timelog : TimeLog
+        Timelog that is to be added to the database.
+    session : Session
+        SQL session that is to be used to add the timelog.
+        Defaults to creating a dependency on the running SQL model session.
     """
     statement1 = (
         select(TimeLog)
@@ -47,6 +57,13 @@ async def timelog(*, timelog: TimeLog, session: Session = Depends(get_session)):
     if results1 or results2 or results3 or results4:
         return "currently posted timelog overlaps another timelog"
     else:
+        time_delta = timelog.end_time - timelog.start_time
+        work_delta_hours = time_delta.total_seconds() / 3600
+        work_hours = "{:.2f}".format(work_delta_hours)
+        work_delta_days = time_delta.total_seconds() / 3600 / 8
+        work_days = "{:.2f}".format(work_delta_days)
+        timelog.count_hours = work_hours
+        timelog.count_days = work_days
         session.add(timelog)
         session.commit()
         session.refresh(timelog)
@@ -55,34 +72,90 @@ async def timelog(*, timelog: TimeLog, session: Session = Depends(get_session)):
 
 @router.get("/")
 async def get_timelogs_all(session: Session = Depends(get_session)):
-    """Get all timelogs"""
-    statement = select(TimeLog)
+    """
+    Get list all timelogs.
+
+    Parameters
+    ----------
+    session : Session
+        SQL session that is to be used to get the timelogs.
+        Defaults to creating a dependency on the running SQL model session.
+    """
+    statement = (
+        select(
+            TimeLog.id,
+            User.short_name.label("username"),
+            Epic.short_name.label("epic_name"),
+            TimeLog.start_time,
+            TimeLog.end_time,
+            TimeLog.count_hours,
+            TimeLog.count_days,
+        )
+        .join(User)
+        .join(Epic)
+        .order_by(TimeLog.end_time.desc())
+    )
     results = session.exec(statement).all()
     return results
 
 
 @router.get("/{timelog_id}")
 async def get_timelog_by_id(timelog_id: int, session: Session = Depends(get_session)):
-    """Get timelog by id"""
+    """
+    Get timelog by id.
+
+    Parameters
+    ----------
+    timelog_id : int
+        ID of timelog to be returned.
+    session : Session
+        SQL session that is to be used to get the timelog.
+        Defaults to creating a dependency on the running SQL model session.
+    """
     statement = select(TimeLog).where(TimeLog.id == timelog_id)
     result = session.exec(statement).one()
     return result
 
 
-@router.get("/users/{user_id}/months/{month}/years/{year}")
+@router.get("/users/{user_id}/epics/{epic_id}")
 async def get_timelog_user_id(
     *,
-    user_id: str,
+    user_id: int,
+    epic_id: int,
     month: int,
     year: int,
     session: Session = Depends(get_session),
 ):
-    """Get list of timelogs by user_id, month"""
+    """
+    Get list of timelogs by user_id, month.
+
+    Parameters
+    ----------
+    user_id : str
+        ID of user from which to pull timelogs.
+    year_month : int
+        Month and year from which to pull timelog(s).
+    session : Session
+        SQL session that is to be used to get the timelogs.
+        Defaults to creating a dependency on the running SQL model session.
+    """
     statement = (
-        select(TimeLog)
+        select(
+            TimeLog.id,
+            User.short_name.label("username"),
+            Epic.short_name.label("epic_name"),
+            TimeLog.start_time,
+            TimeLog.end_time,
+            TimeLog.count_hours,
+            TimeLog.count_days,
+        )
+        .join(User)
+        .join(Epic)
         .where(TimeLog.user_id == user_id)
+        .where(TimeLog.epic_id == epic_id)
         .where(TimeLog.month == month)
         .where(TimeLog.year == year)
+        .order_by(TimeLog.end_time.desc())
     )
     results = session.exec(statement).all()
     return results
@@ -95,7 +168,19 @@ async def update_timelogs(
     timelog_new_start_time: str = None,
     session: Session = Depends(get_session),
 ):
-    """Update timelogs"""
+    """
+    Update a timelog.
+
+    Parameters
+    ----------
+    timelog_id : int
+        ID of timelog to be updated.
+    timelog_new_start_time : str
+        Updated start time of timelog.
+    session : Session
+        SQL session that is to be used to updated the timelog.
+        Defaults to creating a dependency on the running SQL model session.
+    """
     statement = select(TimeLog).where(TimeLog.id == timelog_id)
     timelog_to_update = session.exec(statement).one()
     timelog_to_update.start_time = timelog_new_start_time
@@ -111,7 +196,17 @@ async def delete_timelogs(
     timelog_id: int,
     session: Session = Depends(get_session),
 ):
-    """Delete timelogs"""
+    """
+    Delete a timelog.
+
+    Parameters
+    ----------
+    timelog_id : int
+        ID of timelog to be deleted.
+    session : Session
+        SQL session that is to be used to delete the timelog.
+        Defaults to creating a dependency on the running SQL model session.
+    """
     statement = select(TimeLog).where(TimeLog.id == timelog_id)
     result = session.exec(statement).one()
     timelog_to_delete = result

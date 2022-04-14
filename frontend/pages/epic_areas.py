@@ -74,20 +74,26 @@ def create_epic_area_form(
     selector_epic_id = Selector2(
         set_value=set_epic_id,
         data=epics_names(),
+        width='48%'
     )
 
     # Create input field for the name of the epic area
-    inp_name = Input(set_value=set_name, label="name")
+    inp_name = Input(set_value=set_name, label="name",
+                     width='[48%]')
 
     # Create submit button
     btn = submit_button(handle_submit, epic_id, name)
 
-    return Column(
-        Row(
-            selector_epic_id,
-            inp_name,
-        ),
-        Row(btn),
+    return html.div(
+        {'class': "bg-filter-block-bg py-4 text-sm"},
+        Column(
+            Row(
+                selector_epic_id,
+                inp_name,
+                justify='justify-between'
+            ),
+            Row(btn),
+        )
     )
 
 
@@ -116,7 +122,7 @@ def deactivate_epic_area(set_deact_name):
 
     # Create input field for name of epic area to be deactivated
     inp_deact_name = Input(
-        set_value=set_name_to_deact, label="epic area to be deactivated"
+        set_value=set_name_to_deact, label="epic area to be deactivated", width='full'
     )
 
     # Create the deactivation button
@@ -137,7 +143,7 @@ def activate_epic_area(set_activ_name):
 
     # Create input field for name of epic area to be activated
     inp_activ_name = Input(
-        set_value=set_name_to_activ, label="epic area to be activated"
+        set_value=set_name_to_activ, label="epic area to be activated", width='full'
     )
 
     # Create the activation button

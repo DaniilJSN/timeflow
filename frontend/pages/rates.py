@@ -1,6 +1,7 @@
 import asyncio
 from cProfile import label
 import json
+from turtle import width
 from idom import html, run, use_state, component, event, vdom
 import requests
 from sanic import Sanic, response
@@ -38,25 +39,31 @@ def page():
     amount, set_amount = use_state("")
     updated_rate, set_updated_rate = use_state("")
     on_submit, set_on_submit = use_state(True)
-    return Container(
+    return html.div(
+        {'class': 'w-full'},
         Row(
-            create_rates_form(
-                user_id,
-                set_user_id,
-                client_id,
-                set_client_id,
-                month_start,
-                set_month_start,
-                amount,
-                set_amount,
-                on_submit,
-                set_on_submit,
-            )
+            Container(
+                create_rates_form(
+                    user_id,
+                    set_user_id,
+                    client_id,
+                    set_client_id,
+                    month_start,
+                    set_month_start,
+                    amount,
+                    set_amount,
+                    on_submit,
+                    set_on_submit,
+                )
+            ),
+            bg='bg-filter-block-bg'
         ),
-        Column(
-            Row(rates_table(user_id, client_id, month_start)),
-        ),
-        Row(update_rate(set_updated_rate, user_id, client_id, month_start)),
+        Container(
+            Column(
+                Row(rates_table(user_id, client_id)),
+            ),
+            Row(update_rate(set_updated_rate, user_id, client_id, month_start)),
+        )
     )
 
 
@@ -105,17 +112,20 @@ def create_rates_form(
         else:
             set_on_submit(True)
 
-    selector_user_id = Selector2(set_value=set_user_id, data=username())
+    selector_user_id = Selector2(
+        set_value=set_user_id, data=username(), width='24%')
 
     selector_client_id = Selector2(
         set_value=set_client_id,
         data=clients_names(),
+        width='24%'
     )
     selector_month_start = Selector2(
         set_value=set_month_start,
         data=months_start(),
+        width='24%'
     )
-    inp_amount = Input(set_amount, label="amount in EUR")
+    inp_amount = Input(set_amount, label="amount in EUR", width='[24%]')
 
     is_disabled = True
     if user_id != "" and client_id != "" and month_start != "" and amount != "":
@@ -124,23 +134,21 @@ def create_rates_form(
     btn = Button(is_disabled, handle_submit, label="Submit")
 
     return Column(
-        Row(selector_user_id, selector_client_id, selector_month_start, inp_amount),
+        Row(
+            selector_user_id,
+            selector_client_id,
+            selector_month_start,
+            inp_amount,
+            justify="justify-between",
+        ),
         Row(btn),
     )
 
 
 @component
-def rates_table(user_id, client_id, month_start):
-    # Get list of rates by selected user and client containing selected date
-    ms_str = month_start_to_str(month_start)
-    if user_id != "" and client_id != "" and month_start != "":
-        rows = rates_by_user_client_date(
-            user_id=user_id, client_id=client_id, date=ms_str
-        )
-        return html.div({"class": "flex w-full"}, SimpleTable(rows))
-
-    # Get list of active rate by user and client
-    elif user_id != "" and client_id != "" and month_start == "":
+def rates_table(user_id, client_id):
+    # Get list of rates by user and client
+    if user_id != "" and client_id != "":
         rows = rate_active_by_user_client(user_id, client_id)
         return html.div({"class": "flex w-full"}, SimpleTable(rows))
 
@@ -148,17 +156,17 @@ def rates_table(user_id, client_id, month_start):
 @component
 def update_rate(set_updated_rate, user_id, client_id, month_start):
     new_amount, set_new_amount = use_state("")
+    rate_id, set_rate_id = use_state(None)
 
     def handle_submit(event):
-        rate_update(user_id, client_id, new_amount)
+        rate_update(rate_id, new_amount)
         set_updated_rate(new_amount)
 
-    inp_rate = Input(
-        set_value=set_new_amount,
-        label="new amount for current rate",
-    )
+    inp_rate_id = Input(set_rate_id, label="rate id", width="full")
+    inp_amount = Input(set_value=set_new_amount,
+                       label="new amount", width="full")
     is_disabled = True
-    if user_id != "" and client_id != "" and month_start == "":
+    if rate_id != None and new_amount != "":
         is_disabled = False
 
     btn = Button(is_disabled, handle_submit, label="Update")
@@ -170,4 +178,4 @@ def update_rate(set_updated_rate, user_id, client_id, month_start):
     #     },
     #     "Update",
     # )
-    return Column(Row(inp_rate), Row(btn))
+    return Column(Row(inp_rate_id, inp_amount), Row(btn))

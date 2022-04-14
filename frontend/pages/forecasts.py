@@ -37,25 +37,31 @@ def page():
     epic_id, set_epic_id = use_state("")
     deleted_forecast, set_deleted_forecast = use_state("")
     on_submit, set_on_submit = use_state(True)
-    return Container(
+    return html.div(
+        {'class': 'w-full'},
         Row(
-            create_forecast_form(
-                year_month,
-                set_year_month,
-                days,
-                set_days,
-                user_id,
-                set_user_id,
-                epic_id,
-                set_epic_id,
-                on_submit,
-                set_on_submit,
-            )
+            Container(
+                create_forecast_form(
+                    year_month,
+                    set_year_month,
+                    days,
+                    set_days,
+                    user_id,
+                    set_user_id,
+                    epic_id,
+                    set_epic_id,
+                    on_submit,
+                    set_on_submit,
+                ),
+            ),
+            bg='bg-filter-block-bg'
         ),
-        Column(
+        Container(Column(
             Row(forecasts_table(user_id, epic_id, year_month)),
-        ),
-        Row(delete_forecast(set_deleted_forecast)),
+        )),
+        Container(
+            Row(delete_forecast(set_deleted_forecast)),
+        )
     )
 
 
@@ -121,21 +127,25 @@ def create_forecast_form(
         else:
             set_on_submit(True)
 
-    selector_user_id = Selector2(set_value=set_user_id, data=username())
+    selector_user_id = Selector2(
+        set_value=set_user_id, data=username(), width="16%")
 
     selector_epic_id = Selector2(
         set_value=set_epic_id,
         data=epics_names(),
+        width="16%",
     )
     display_client = display_value(epic_id)
     selector_year_month = Selector2(
         set_value=set_year_month,
         data=year_month_dict_list(),
+        width="16%",
     )
 
     selector_days = Selector2(
         set_value=set_days,
         data=forecast_days(),
+        width="16%",
     )
 
     is_disabled = True
@@ -145,32 +155,38 @@ def create_forecast_form(
     btn = Button(is_disabled, handle_submit, label="Submit")
 
     return Column(
-        Row(
+        html.div(
+            {'class': 'flex flex-wrap justify-between items-center md:justify-start 2xl:justify-between'},
             selector_user_id,
             selector_epic_id,
             display_client,
             selector_year_month,
             selector_days,
-        ),
-        Row(btn),
+            btn
+        )
+
     )
 
 
-@component
+@ component
 def display_value(epic_id):
     client = client_name_by_epic_id(epic_id)
-    class_h3 = """text-primary-500  w-full px-4 py-2.5 mt-2 
-                        text-base bg-secondary-300"""
     if epic_id == "":
-        return html.h3({"class": class_h3, "value": ""}, "client name")
+        return html.div(
+            {'class': "py-3 pl-3 border-[1px] bg-nav border-select-border rounded-[3px] xl:w-[16%]"},
+            html.h3({"value": ""}, "client name")
+        )
     else:
-        return html.h3(
-            {"class": class_h3, "value": client["value"]},
-            client["display_value"],
+        return html.div(
+            {'class': "py-3 pl-3 border-[1px] bg-nav rounded-[3px] xl:w-[16%]"},
+            html.h3(
+                {"value": client["value"]},
+                client["display_value"],
+            )
         )
 
 
-@component
+@ component
 def forecasts_table(user_id, epic_id, year_month):
     """Generates a table component with forecast days by year and month
 
@@ -189,7 +205,7 @@ def forecasts_table(user_id, epic_id, year_month):
     return html.div({"class": "flex w-full"}, SimpleTable(rows=rows))
 
 
-@component
+@ component
 def delete_forecast(set_deleted_forecast):
     forecast_to_delete, set_forecast_to_delete = use_state("")
 
@@ -200,12 +216,6 @@ def delete_forecast(set_deleted_forecast):
     inp_forecast = Input(
         set_value=set_forecast_to_delete,
         label="forecast id to delete",
+        width='full'
     )
-    btn = html.button(
-        {
-            "class": "relative w-fit h-fit px-2 py-1 text-lg border text-gray-50  border-secondary-200",
-            "onClick": handle_delete,
-        },
-        "Delete",
-    )
-    return Column(Row(inp_forecast), Row(btn))
+    return Column(Row(inp_forecast), Row(Button(False, handle_delete, "Delete")))
